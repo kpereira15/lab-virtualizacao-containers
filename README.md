@@ -6,7 +6,7 @@ Este roteiro organiza as duas aulas práticas da disciplina utilizando ambientes
 
 ---
 
-## 📘 Aula 1: Bare Metal, Máquina Virtual e Isolamento (Containers)
+## 📘 Prática 1: Bare Metal, Máquina Virtual e Isolamento (Containers)
 *Ambiente: **GitHub Codespaces** (não exige instalação de ferramentas extras).*
 
 ### Como iniciar o ambiente
@@ -50,7 +50,7 @@ ls -l /proc/self/ns
 
 ---
 
-## 📗 Aula 2: Redes de Containers e Balanceamento de Carga
+## 📗 Prática 2: Redes de Containers e Balanceamento de Carga
 *Ambiente: **Play with Docker** ([labs.play-with-docker.com](https://labs.play-with-docker.com/)) — já vem com Docker nativo ativo.*
 
 ### Como iniciar o ambiente
