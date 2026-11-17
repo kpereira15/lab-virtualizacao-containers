@@ -29,26 +29,24 @@ lsblk
 * **O que observar:** O processador físico pertence ao servidor *Bare Metal* no datacenter, enquanto o *Hypervisor* (Microsoft) entrega uma fatia isolada de vCPUs, memória RAM e discos virtuais para a sua VM.
 
 ### Etapa 2: Compartilhamento de Kernel e Isolamento de Processos (Base dos Containers)
-Diferente de uma Máquina Virtual (que sobe um sistema operacional completo), um **container** é apenas um processo isolado que compartilha o mesmo kernel do sistema hospedeiro.
+Diferente de uma Máquina Virtual (que sobe um sistema operacional completo), um **container** é um conjunto de processos isolados por *namespaces* que compartilha o mesmo kernel do sistema hospedeiro.
 
-1. Verifique a versão atual do kernel da sua VM:
+1. Verifique a versão do kernel compartilhada pelo ambiente:
 ```bash
 uname -r
 ```
 
-2. Crie um ambiente isolado (*namespace* de processos, exatamente como um container faz por baixo dos panos) e liste os processos ativos lá dentro:
-```bash
-sudo unshare --pid --fork --mount-proc bash
-```
+2. Liste os processos ativos no seu ambiente isolado:
 ```bash
 ps aux
 ```
-* **O que observar:** Dentro desse ambiente isolado, você enxerga apenas os processos pertencentes a ele (PID 1), mas se executar `uname -r` novamente, verá que o kernel continua exatamente o mesmo da VM.
+* **O que observar:** Existem pouquíssimos processos em execução (apenas o seu terminal e os serviços do editor), comprovando que o ambiente já roda dentro de um container isolado da máquina virtual hospedeira.
 
-3. Para sair do ambiente isolado e voltar ao terminal normal da VM, execute:
+3. Inspecione os *namespaces* (mecanismos de isolamento do kernel Linux) atribuídos ao seu ambiente:
 ```bash
-exit
+ls -l /proc/self/ns
 ```
+* **O que observar:** Cada identificador (`pid`, `net`, `mnt`, `uts`, `ipc`) representa uma camada de isolamento criada pelo kernel Linux para separar a sua sessão sem precisar de uma nova Máquina Virtual.
 
 ---
 
@@ -60,7 +58,7 @@ exit
 2. Clique em **Start** e depois em **+ ADD NEW INSTANCE** no menu lateral esquerdo.
 
 ### Etapa 1: Criando a Rede Isolada e o Cluster de Aplicação
-1. Crie uma rede interna (bridge) para resolução de nomes (DNS) entre os containers:
+1. Crie uma rede interna (*bridge*) para resolução de nomes (DNS) entre os containers:
 ```bash
 docker network create rede-cluster
 ```
@@ -69,51 +67,4 @@ docker network create rede-cluster
 ```bash
 docker run -d --name app1 --network rede-cluster nginx:alpine
 docker run -d --name app2 --network rede-cluster nginx:alpine
-docker run -d --name app3 --network rede-cluster nginx:alpine
-```
-
-3. Personalize a página de resposta de cada réplica para identificar qual servidor atendeu a requisição:
-```bash
-docker exec app1 sh -c 'echo "Resposta do Servidor 01" > /usr/share/nginx/html/index.html'
-docker exec app2 sh -c 'echo "Resposta do Servidor 02" > /usr/share/nginx/html/index.html'
-docker exec app3 sh -c 'echo "Resposta do Servidor 03" > /usr/share/nginx/html/index.html'
-```
-
-### Etapa 2: Configurando e Subindo o Load Balancer (NGINX)
-1. Crie o arquivo de configuração `nginx.conf` diretamente no terminal:
-```bash
-cat << 'EOF' > nginx.conf
-events {}
-http {
-    upstream cluster_web {
-        server app1:80;
-        server app2:80;
-        server app3:80;
-    }
-    server {
-        listen 80;
-        location / {
-            proxy_pass http://cluster_web;
-        }
-    }
-}
-EOF
-```
-
-2. Inicie o container do balanceador de carga expondo a porta **`8080`**:
-```bash
-docker run -d --name load-balancer --network rede-cluster -p 8080:80 -v $(pwd)/nginx.conf:/etc/nginx/nginx.conf:ro nginx:alpine
-```
-
-3. Teste o algoritmo **Round Robin** disparando 9 requisições sequenciais:
-```bash
-for i in {1..9}; do curl -s http://localhost:8080; done
-```
-
-### Etapa 3: Alta Disponibilidade (Failover)
-1. Simule a queda repentina do segundo servidor (`app2`) e repita as requisições:
-```bash
-docker stop app2
-for i in {1..6}; do curl -s http://localhost:8080; done
-```
-* **O que observar:** O balanceador detecta a indisponibilidade do `app2` e redistribui automaticamente todo o tráfego entre `app1` e `app3` sem falha para o cliente.
+docker run -d --name app3 --network rede-
